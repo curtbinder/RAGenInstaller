@@ -26,19 +26,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 !include "MUI2.nsh"
 
-;!define STATIC
+;------------------------------------------
+; Command Line Arguments
+;
+; These must be defined on the command line when building this installer
+; /DINSTALLER_NAME=
+; /DRAGEN_VERSION=
+; /DDEV_LIB_VERSION=
+
 ;------------------------------------------
 ; Define statements
 # Possibly have these be an include file
 # Consider in future having this read from a website XML file
 # and have it be a network install
 !define VERSION 					"1.0.0.0"
-!define DEV_LIB_VERSION 			"0.8.5.13"
-!define RAGEN_VERSION 				"1.0.4.92"
 !ifdef STATIC
-!define RAGEN_VERSION_DIR			"v104-static"
+!define RAGEN_VERSION_DIR			"${INSTALLER_NAME}-static"
 !else
-!define RAGEN_VERSION_DIR			"v104"
+!define RAGEN_VERSION_DIR			"${INSTALLER_NAME}"
 !endif ; ifdef STATIC
 !define RAGEN_REG_KEY				"Software\Curt Binder\RAGen"
 !define RAGEN_UNINSTALL_KEY			"Software\Microsoft\Windows\CurrentVersion\Uninstall\RAGen"
@@ -54,7 +59,7 @@ Var AppExeName
 ;------------------------------------------
 ; Set some defaults
 Name $AppName
-OutFile "RAGen_Installer.exe"
+OutFile "RAGen-${INSTALLER_NAME}_Installer.exe"
 BrandingText "CurtBinder"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
