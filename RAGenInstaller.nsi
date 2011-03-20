@@ -46,6 +46,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !else
 !define RAGEN_VERSION_DIR			"${INSTALLER_NAME}"
 !endif ; ifdef STATIC
+!define CB_REG_KEY					"Software\Curt Binder\"
 !define RAGEN_REG_KEY				"Software\Curt Binder\RAGen"
 !define RAGEN_UNINSTALL_KEY			"Software\Microsoft\Windows\CurrentVersion\Uninstall\RAGen"
 !define DEV_LIB_KEY					"DevelopmentLibraries"
@@ -60,7 +61,7 @@ Var AppExeName
 ;------------------------------------------
 ; Set some defaults
 Name $AppName
-OutFile "RAGen-${INSTALLER_NAME}_Installer.exe"
+OutFile "RAGen-${INSTALLER_NAME} Installer.exe"
 BrandingText "CurtBinder"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
@@ -267,14 +268,15 @@ Section "Uninstall"
 
 	# delete shortcuts
 	DetailPrint "Deleting Start Menu Shortcut..."
-	Delete "$SMPROGRAMS\$AppName"
 	Delete "$SMPROGRAMS\$AppName\$AppName.lnk"
+	RMDir /r "$SMPROGRAMS\$AppName"
 	DetailPrint "Deleting Desktop Shortcut..."
 	Delete "$DESKTOP\$AppName.lnk"
 	
 	# deletes registry keys
 	DetailPrint "Deleting Registry keys..."
 	DeleteRegKey HKCU "${RAGEN_REG_KEY}"
+	DeleteRegKey HKCU "${CB_REG_KEY}"
 	DeleteRegKey HKCU "${RAGEN_UNINSTALL_KEY}"
 SectionEnd
 

@@ -1,0 +1,3 @@
+TODO
+-----
+Customize components by hiding the "Backup" option if the libraries folder does not exist
