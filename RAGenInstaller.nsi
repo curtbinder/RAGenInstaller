@@ -255,7 +255,7 @@ LangString DESC_SectionBackup ${LANG_ENGLISH} "Backup existing libraries folder 
 
 Section "Uninstall"
 	# Uninstalls ReefAngel Generator
-	IfFileExists $InstallLibDirBackup\*.* 0 delete_files
+	IfFileExists $InstallLibDirBackup*.* 0 delete_files
 		DetailPrint "Deleting Dev Libraries and restoring original libraries..."
 		RMDir /r $InstallLibDir
 		Rename $InstallLibDirBackup $InstallLibDir
