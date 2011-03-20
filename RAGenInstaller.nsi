@@ -26,6 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 !include "MUI2.nsh"
 
+;!define STATIC
 ;------------------------------------------
 ; Define statements
 # Possibly have these be an include file
@@ -34,6 +35,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !define VERSION 					"1.0.0.0"
 !define DEV_LIB_VERSION 			"0.8.5.13"
 !define RAGEN_VERSION 				"1.0.4.92"
+!ifdef STATIC
+!define RAGEN_VERSION_DIR			"v104-static"
+!else
+!define RAGEN_VERSION_DIR			"v104"
+!endif ; ifdef STATIC
 !define RAGEN_REG_KEY				"Software\Curt Binder\RAGen"
 !define RAGEN_UNINSTALL_KEY			"Software\Microsoft\Windows\CurrentVersion\Uninstall\RAGen"
 !define DEV_LIB_KEY					"DevelopmentLibraries"
@@ -41,6 +47,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;------------------------------------------
 ; Global Variables
 Var InstallLibDir
+Var InstallLibDirBackup
 Var AppName
 Var AppExeName
 
@@ -50,6 +57,7 @@ Name $AppName
 OutFile "RAGen_Installer.exe"
 BrandingText "CurtBinder"
 RequestExecutionLevel user
+SetCompressor /SOLID lzma
 
 ;------------------------------------------
 ; Interface Configurations
@@ -72,6 +80,7 @@ RequestExecutionLevel user
 !insertmacro MUI_PAGE_LICENSE "license.txt"
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
+!define MUI_FINISHPAGE_NOAUTOCLOSE
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\$AppExeName"
 !define MUI_FINISHPAGE_RUN_TEXT "Run $AppName"
@@ -87,6 +96,7 @@ RequestExecutionLevel user
 ; Functions
 Function .onInit
 	StrCpy $InstallLibDir "$DOCUMENTS\Arduino\libraries\"
+	StrCpy $InstallLibDirBackup "$DOCUMENTS\Arduino\libraries-backup\"
 	StrCpy $AppName "ReefAngel Generator"
 	StrCpy $AppExeName "RAGen.exe"
 	StrCpy $INSTDIR "$PROGRAMFILES\$AppName\"
@@ -100,8 +110,16 @@ Section "RAGen" SectionRAGen
 	# 1. Install VC++ runtime libraries
 	# 2. Create folder and copies files into it
 	# 3. Set Registry key for RAGen to start in Development Mode
-	#SetOutPath
-	#ExecWait '"$INSTDIR\vcredist.exe"'
+	DetailPrint "Installing $AppName..."
+	SetOutPath $INSTDIR
+	SetOverwrite On
+	File /r "..\RAGenVersions\RAGen-${RAGEN_VERSION_DIR}\*.*"
+	File /r "..\RAGenVersions\CommonFiles\*.*"
+	SetOverwrite Off
+	DetailPrint "Installing VC++ 2005 Redistributable files..."
+	ExecWait '"$INSTDIR\vcredist_x86.exe" /Q'
+	Delete $INSTDIR\vcredist_x86.exe
+	WriteRegDWORD HKCU "${RAGEN_REG_KEY}" "${DEV_LIB_KEY}" 1
 SectionEnd
 
 Section "Dev Libraries" SectionDevLibs
@@ -109,29 +127,43 @@ Section "Dev Libraries" SectionDevLibs
 	# Order of the install
 	# 1. Backup existing folder to libraries-backup, if present
 	# 2. Create new folder
-	# 3. Extract vDEV_LIB_VERSION.zip file to folder
-	# 4. Extract MiscLibraries.zip to folder
-	# 5. Extract Phillips6610LCDInv.zip fo folder
-#	SetOutPath $InstallLibDir
-	#Rename $InstallLibDir $InstallLibDir-backup
+	DetailPrint "Installing ReefAngel Development Libraries..."
+	DetailPrint "Backing up existing libraries..."
+	Delete $InstallLibDirBackup
+	Rename $InstallLibDir $InstallLibDirBackup
+	CreateDirectory $InstallLibDir
+	DetailPrint "Copying new libraries..."
+	SetOutPath $InstallLibDir
+	SetOverwrite On
+	File /r /x *.gitignore /x TODO.txt "..\RADevLibs\v${DEV_LIB_VERSION}\*.*"
+	File /r "..\RADevLibs\AdditionalLibraries\*.*"
+	SetOverwrite Off
 SectionEnd
 
 SectionGroup /e "Shortcuts"
 Section "Start Menu" SectionStartMenu
 	# Installs a shortcut on the start menu
-	#CreateShortcut "$SMPROGRAMS\$AppName\$AppName.lnk" "$INSTDIR\$AppExeName"
+	DetailPrint "Creating Start Menu shortcut..."
+	CreateDirectory "$SMPROGRAMS\$AppName"
+	CreateShortcut "$SMPROGRAMS\$AppName\$AppName.lnk" "$INSTDIR\$AppExeName"
 SectionEnd
 
 Section "Desktop" SectionDesktop
 	# Installs a shortcut on the desktop
-	#CreateShortcut "$DESKTOP\$AppName.lnk" "$INSTDIR\$AppExeName"
+	DetailPrint "Creating Desktop shortcut..."
+	CreateShortcut "$DESKTOP\$AppName.lnk" "$INSTDIR\$AppExeName"
 SectionEnd
 SectionGroupEnd
 
 ;------------------------------------------
 ; Version Information for Installer
 VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductName" "ReefAngel Generator Installer"
+!ifdef STATIC
+VIAddVersionKey /LANG=${LANG_ENGLISH} "Comments" "Installation program for ReefAngel Generator (Static Build)"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "SpecialBuild" "Statically Linked MFC Libraries"
+!else
 VIAddVersionKey /LANG=${LANG_ENGLISH} "Comments" "Installation program for ReefAngel Generator"
+!endif  ; ifdef STATIC
 VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalCopyright" "(c) 2011 Curt Binder"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "FileDescription" "ReefAngel Generator Installer Application"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "FileVersion" "${VERSION}"
