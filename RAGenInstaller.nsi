@@ -60,6 +60,11 @@ RequestExecutionLevel user
 SetCompressor /SOLID lzma
 
 ;------------------------------------------
+; Installation Types
+InstType "Full"
+InstType "RAGen Only"
+
+;------------------------------------------
 ; Interface Configurations
 !define MUI_ICON "images\BluePackageCD.ico"
 !define MUI_UNICON "images\BluePackageUninstall.ico"
@@ -110,28 +115,34 @@ Section "RAGen" SectionRAGen
 	# 1. Install VC++ runtime libraries
 	# 2. Create folder and copies files into it
 	# 3. Set Registry key for RAGen to start in Development Mode
+	SectionIn 1 2
 	DetailPrint "Installing $AppName..."
 	SetOutPath $INSTDIR
 	SetOverwrite On
 	File /r "..\RAGenVersions\RAGen-${RAGEN_VERSION_DIR}\*.*"
 	File /r "..\RAGenVersions\CommonFiles\*.*"
 	SetOverwrite Off
-	DetailPrint "Installing VC++ 2005 Redistributable files..."
-	ExecWait '"$INSTDIR\vcredist_x86.exe" /Q'
-	Delete $INSTDIR\vcredist_x86.exe
+	;DetailPrint "Installing VC++ 2005 Redistributable files..."
+	;ExecWait '"$INSTDIR\vcredist_x86.exe" /Q'
+	;Delete $INSTDIR\vcredist_x86.exe
 	WriteRegDWORD HKCU "${RAGEN_REG_KEY}" "${DEV_LIB_KEY}" 1
 SectionEnd
 
+SectionGroup /e "Libraries"
+Section "Backup Existing" SectionBackup
+	SectionIn 1
+	DetailPrint "Backing up existing libraries..."
+	Delete $InstallLibDirBackup
+	Rename $InstallLibDir $InstallLibDirBackup
+	CreateDirectory $InstallLibDir
+SectionEnd
 Section "Dev Libraries" SectionDevLibs
 	# Installs to My Documents\Arduino\libraries
 	# Order of the install
 	# 1. Backup existing folder to libraries-backup, if present
 	# 2. Create new folder
+	SectionIn 1
 	DetailPrint "Installing ReefAngel Development Libraries..."
-	DetailPrint "Backing up existing libraries..."
-	Delete $InstallLibDirBackup
-	Rename $InstallLibDir $InstallLibDirBackup
-	CreateDirectory $InstallLibDir
 	DetailPrint "Copying new libraries..."
 	SetOutPath $InstallLibDir
 	SetOverwrite On
@@ -139,10 +150,12 @@ Section "Dev Libraries" SectionDevLibs
 	File /r "..\RADevLibs\AdditionalLibraries\*.*"
 	SetOverwrite Off
 SectionEnd
+SectionGroupEnd
 
 SectionGroup /e "Shortcuts"
 Section "Start Menu" SectionStartMenu
 	# Installs a shortcut on the start menu
+	SectionIn 1 2
 	DetailPrint "Creating Start Menu shortcut..."
 	CreateDirectory "$SMPROGRAMS\$AppName"
 	CreateShortcut "$SMPROGRAMS\$AppName\$AppName.lnk" "$INSTDIR\$AppExeName"
@@ -150,6 +163,7 @@ SectionEnd
 
 Section "Desktop" SectionDesktop
 	# Installs a shortcut on the desktop
+	SectionIn 1 2
 	DetailPrint "Creating Desktop shortcut..."
 	CreateShortcut "$DESKTOP\$AppName.lnk" "$INSTDIR\$AppExeName"
 SectionEnd
@@ -177,11 +191,13 @@ LangString DESC_SectionRAGen ${LANG_ENGLISH} "ReefAngel Generator v${RAGEN_VERSI
 LangString DESC_SectionDevLibs ${LANG_ENGLISH} "ReefAngel Development Libraries v${DEV_LIB_VERSION}"
 LangString DESC_SectionStartMenu ${LANG_ENGLISH} "Installs a shorcut for ReefAngel Generator in the Start Menu"
 LangString DESC_SectionDesktop ${LANG_ENGLISH} "Installs a shortcut for ReefAngel Generator on the Desktop"
+LangString DESC_SectionBackup ${LANG_ENGLISH} "Backup existing libraries folder before installing Development Libraries"
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
 	!insertmacro MUI_DESCRIPTION_TEXT ${SectionRAGen} $(DESC_SectionRAGen)
 	!insertmacro MUI_DESCRIPTION_TEXT ${SectionDevLibs} $(DESC_SectionDevLibs)
 	!insertmacro MUI_DESCRIPTION_TEXT ${SectionStartMenu} $(DESC_SectionStartMenu)
 	!insertmacro MUI_DESCRIPTION_TEXT ${SectionDesktop} $(DESC_SectionDesktop)
+	!insertmacro MUI_DESCRIPTION_TEXT ${SectionBackup} $(DESC_SectionBackup)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 
