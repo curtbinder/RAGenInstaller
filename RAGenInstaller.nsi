@@ -25,6 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ReefAngel Generator will have the option to be uninstalled.
 
 !include "MUI2.nsh"
+!include "FileFunc.nsh"
 
 ;------------------------------------------
 ; Command Line Arguments
@@ -97,6 +98,11 @@ InstType "RAGen Only"
 !insertmacro MUI_PAGE_FINISH
 
 # Pages for the uninstaller, list in order
+!insertmacro MUI_UNPAGE_WELCOME
+!insertmacro MUI_UNPAGE_CONFIRM
+!define MUI_UNFINISHPAGE_NOAUTOCLOSE
+!insertmacro MUI_UNPAGE_INSTFILES
+!insertmacro MUI_UNPAGE_FINISH
 
 ;------------------------------------------
 ; Set languages to include
@@ -104,33 +110,73 @@ InstType "RAGen Only"
 
 ;------------------------------------------
 ; Functions
-Function .onInit
+!macro SetAppDefaultsMacro UN
+Function ${UN}SetAppDefaults
 	StrCpy $InstallLibDir "$DOCUMENTS\Arduino\libraries\"
 	StrCpy $InstallLibDirBackup "$DOCUMENTS\Arduino\libraries-backup\"
 	StrCpy $AppName "ReefAngel Generator"
 	StrCpy $AppExeName "RAGen.exe"
+FunctionEnd
+!macroend
+!insertmacro SetAppDefaultsMacro ""
+!insertmacro SetAppDefaultsMacro "un."
+
+Function .onInit
+	Call SetAppDefaults
 	StrCpy $INSTDIR "$PROGRAMFILES\$AppName\"
+FunctionEnd
+
+Function AddUninstallEntry
+	WriteRegStr HKCU "${RAGEN_UNINSTALL_KEY}" "InstallLocation" "$INSTDIR"
+	WriteRegStr HKCU "${RAGEN_UNINSTALL_KEY}" "DisplayName" "$AppName"
+	WriteRegStr HKCU "${RAGEN_UNINSTALL_KEY}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
+	WriteRegStr HKCU "${RAGEN_UNINSTALL_KEY}" "Publisher" "Curt Binder"
+	WriteRegStr HKCU "${RAGEN_UNINSTALL_KEY}" "RegOwner" "Curt Binder"
+	WriteRegStr HKCU "${RAGEN_UNINSTALL_KEY}" "URLInfoAbout" "http://curtbinder.info/"
+	WriteRegStr HKCU "${RAGEN_UNINSTALL_KEY}" "DisplayVersion" "${RAGEN_VERSION}"
+	WriteRegStr HKCU "${RAGEN_UNINSTALL_KEY}" "Comments" "Generates settings and information for use with the ReefAngel controller."
+	WriteRegDWORD HKCU "${RAGEN_UNINSTALL_KEY}" "NoModify" 1
+	WriteRegDWORD HKCU "${RAGEN_UNINSTALL_KEY}" "NoRepair" 1
+	${GetSize} "$INSTDIR" "/S=OK" $0 $1 $2
+	IntFmt $0 "0x%08X" $0
+	WriteRegDWORD HKCU "${RAGEN_UNINSTALL_KEY}" "EstimatedSize" "$0"
+FunctionEnd
+
+Function un.onInit
+	Call un.SetAppDefaults
+	# Get Registry Install Folder
+	ReadRegStr $INSTDIR HKCU "${RAGEN_UNINSTALL_KEY}" "InstallLocation"
+	${If} $INSTDIR == ""
+		StrCpy $INSTDIR "$PROGRAMFILES\$AppName\"
+	${EndIf}
 FunctionEnd
 
 ;------------------------------------------
 ; Installer Component Sections
 Section "RAGen" SectionRAGen
 	# Installs to Program Files\ReefAngel Generator
-	# Order of install
-	# 1. Install VC++ runtime libraries
-	# 2. Create folder and copies files into it
-	# 3. Set Registry key for RAGen to start in Development Mode
 	SectionIn 1 2
 	DetailPrint "Installing $AppName..."
 	SetOutPath $INSTDIR
-	SetOverwrite On
+	SetOverwrite on
 	File /r "..\RAGenVersions\RAGen-${RAGEN_VERSION_DIR}\*.*"
 	File /r "..\RAGenVersions\CommonFiles\*.*"
-	SetOverwrite Off
+	SetOverwrite off
 	;DetailPrint "Installing VC++ 2005 Redistributable files..."
 	;ExecWait '"$INSTDIR\vcredist_x86.exe" /Q'
 	;Delete $INSTDIR\vcredist_x86.exe
+
+	# Write out uninstaller
+	SetOverwrite on
+	WriteUninstaller "$INSTDIR\Uninstall.exe"
+	SetOverwrite off
+
+	# Write Registry Settings
 	WriteRegDWORD HKCU "${RAGEN_REG_KEY}" "${DEV_LIB_KEY}" 1
+	WriteRegStr HKCU "${RAGEN_REG_KEY}" "InstallFolder" $INSTDIR
+	
+	# Add Add/Remove entry
+	Call AddUninstallEntry
 SectionEnd
 
 SectionGroup /e "Libraries"
@@ -150,10 +196,10 @@ Section "Dev Libraries" SectionDevLibs
 	DetailPrint "Installing ReefAngel Development Libraries..."
 	DetailPrint "Copying new libraries..."
 	SetOutPath $InstallLibDir
-	SetOverwrite On
+	SetOverwrite on
 	File /r /x *.gitignore /x TODO.txt "..\RADevLibs\v${DEV_LIB_VERSION}\*.*"
 	File /r "..\RADevLibs\AdditionalLibraries\*.*"
-	SetOverwrite Off
+	SetOverwrite off
 SectionEnd
 SectionGroupEnd
 
@@ -206,21 +252,29 @@ LangString DESC_SectionBackup ${LANG_ENGLISH} "Backup existing libraries folder 
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 
-/*
-Section "un.Dev Libraries"
-	# If libraries-backup folder is present, attempt to uninstall
-	# Order of the uninstall
-	# 1. Delete folder
-	# 2. Move libraries-backup to libraries
-SectionEnd
-*/
+Section "Uninstall"
+	# Uninstalls ReefAngel Generator
+	IfFileExists $InstallLibDirBackup\*.* 0 delete_files
+		DetailPrint "Deleting Dev Libraries and restoring original libraries..."
+		RMDir /r $InstallLibDir
+		Rename $InstallLibDirBackup $InstallLibDir
+	
+	delete_files:
+	DetailPrint "Deleting ReefAngel Generator files..."
+	Delete "$INSTDIR\Uninstall.exe"
+	Delete "$INSTDIR\*.*"
+	RMDir "$INSTDIR"
 
-#Section "un.RAGen"
-	# Uninstalls from Program Files\ReefAngel Generator
-	# Order of uninstall
-	# 1. Delete folder
-	# 2. Delete Start Menu link
-	# 3. Delete Desktop link
-	# 4. Delete Registry Key
-#SectionEnd
+	# delete shortcuts
+	DetailPrint "Deleting Start Menu Shortcut..."
+	Delete "$SMPROGRAMS\$AppName"
+	Delete "$SMPROGRAMS\$AppName\$AppName.lnk"
+	DetailPrint "Deleting Desktop Shortcut..."
+	Delete "$DESKTOP\$AppName.lnk"
+	
+	# deletes registry keys
+	DetailPrint "Deleting Registry keys..."
+	DeleteRegKey HKCU "${RAGEN_REG_KEY}"
+	DeleteRegKey HKCU "${RAGEN_UNINSTALL_KEY}"
+SectionEnd
 
