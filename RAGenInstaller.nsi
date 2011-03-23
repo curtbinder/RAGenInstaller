@@ -34,6 +34,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ; /DINSTALLER_NAME=
 ; /DRAGEN_VERSION=
 ; /DDEV_LIB_VERSION=
+; /DDEV_NAME=
 
 ;------------------------------------------
 ; Define statements
@@ -61,7 +62,7 @@ Var AppExeName
 ;------------------------------------------
 ; Set some defaults
 Name $AppName
-OutFile "RAGen-${INSTALLER_NAME} Installer.exe"
+OutFile "RAGen-${INSTALLER_NAME}-${DEV_NAME} Installer.exe"
 BrandingText "CurtBinder"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
